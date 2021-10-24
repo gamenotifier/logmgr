@@ -23,7 +23,7 @@ func (l *Logger) Extend(name string) *Logger {
 	newName := append(l.name, name)
 	newNameStr := strings.Join(newName, ".")
 	return &Logger{
-		Entry:   log.WithContext(context.WithValue(context.Background(), keyLoggerName, newNameStr)),
+		Entry:   log.WithField(keyLoggerName, newNameStr),
 		manager: l.manager,
 		name:    newName,
 	}

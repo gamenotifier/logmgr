@@ -1,7 +1,6 @@
 package logmgr
 
 import (
-	"context"
 	"fmt"
 	"github.com/getsentry/sentry-go"
 	"github.com/gin-gonic/gin"
@@ -141,7 +140,7 @@ func (m *SentryManager) NewLogger(name string) *Logger {
 	log := logrus.New()
 	log.AddHook(m)
 	return &Logger{
-		Entry:   log.WithContext(context.WithValue(context.Background(), keyLoggerName, name)),
+		Entry:   log.WithField(keyLoggerName, name),
 		manager: m,
 		name:    []string{name},
 	}

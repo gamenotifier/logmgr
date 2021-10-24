@@ -17,8 +17,8 @@ type logEntry struct {
 
 // LoggerName returns the set logger name, or the empty string if not set
 func (entry *logEntry) LoggerName() string {
-	if entry.Context != nil {
-		if name := entry.Context.Value(keyLoggerName); name != nil {
+	if entry.Data != nil {
+		if name, ok := entry.Data[keyLoggerName]; ok {
 			return name.(string)
 		}
 	}
