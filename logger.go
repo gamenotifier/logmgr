@@ -29,14 +29,22 @@ func (l *Logger) Extend(name string) *Logger {
 	}
 }
 
+func (l *Logger) ensureContext() {
+	if l.Entry.Context == nil {
+		l.Entry.Context = context.Background()
+	}
+}
+
 // WithUser includes the given user id in the logger context.
 func (l *Logger) WithUser(userID string) *Logger {
+	l.ensureContext()
 	l.Entry.Context = context.WithValue(l.Entry.Context, keyUserID, userID)
 	return l
 }
 
 // WithGin includes the given gin request context in the logger context.
 func (l *Logger) WithGin(c *gin.Context) *Logger {
+	l.ensureContext()
 	l.Entry.Context = context.WithValue(l.Entry.Context, keyGinContext, c)
 	return l
 }

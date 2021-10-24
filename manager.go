@@ -85,6 +85,33 @@ func (m *SentryManager) Fire(lEntry *logrus.Entry) error {
 	}
 
 	go func(hub *sentry.Hub) {
+		defer func() {
+			if err := recover(); err != nil {
+				event := sentry.NewEvent()
+				event.Level = sentry.LevelError
+				event.Message = "recovered panic within sentry error logging"
+				event.Fingerprint = []string{fingerprintBase, "sentry_panic"}
+
+				if asErr, ok := err.(error); ok {
+					hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
+						Type:    "error",
+						Category: "sentry.panic",
+						Message: asErr.Error(),
+						Level:   "fatal",
+					}, breadcrumbLimit)
+				} else if asStr, ok := err.(string); ok {
+					hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
+						Type:    "error",
+						Category: "sentry.panic",
+						Message: asStr,
+						Level:   "fatal",
+					}, breadcrumbLimit)
+				}
+
+				hub.CaptureEvent(event)
+			}
+		}()
+
 		// hub should be one cloned *sentry.Hub in both cases, so we are free to modify it within this goroutine
 		event := sentry.NewEvent()
 		event.Level = sentry.Level(entry.Level.String())

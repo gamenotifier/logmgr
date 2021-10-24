@@ -40,7 +40,9 @@ func (entry *logEntry) UserID() string {
 // GinContext returns the set gin request context, or the nil if not set
 func (entry *logEntry) GinContext() *gin.Context {
 	if entry.Context != nil {
-		return entry.Context.Value(keyGinContext).(*gin.Context)
+		if c := entry.Context.Value(keyGinContext); c != nil {
+			return c.(*gin.Context)
+		}
 	}
 
 	return nil
