@@ -119,13 +119,16 @@ func (m *SentryManager) Fire(lEntry *logrus.Entry) error {
 		event.Extra = entry.Data
 		event.Timestamp = entry.Time
 
-		if ginCtx := entry.GinContext(); ginCtx != nil {
-			event.Fingerprint = []string{fingerprintBase, ginCtx.Request.Method, ginCtx.FullPath(), entry.Message}
-		}
-
 		loggerName := entry.LoggerName()
 		if loggerName != "" {
 			event.Logger = loggerName
+			event.Fingerprint = append(event.Fingerprint, loggerName)
+		}
+
+		if ginCtx := entry.GinContext(); ginCtx != nil {
+			event.Fingerprint = []string{fingerprintBase, ginCtx.Request.Method, ginCtx.FullPath(), entry.Message}
+		} else if loggerName != "" {
+			event.Fingerprint = []string{fingerprintBase, loggerName, entry.Message}
 		}
 
 		// Add error breadcrumb if included
