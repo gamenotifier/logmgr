@@ -94,17 +94,17 @@ func (m *SentryManager) Fire(lEntry *logrus.Entry) error {
 
 				if asErr, ok := err.(error); ok {
 					hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
-						Type:    "error",
+						Type:     "error",
 						Category: "sentry.panic",
-						Message: asErr.Error(),
-						Level:   "fatal",
+						Message:  asErr.Error(),
+						Level:    "fatal",
 					}, breadcrumbLimit)
 				} else if asStr, ok := err.(string); ok {
 					hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
-						Type:    "error",
+						Type:     "error",
 						Category: "sentry.panic",
-						Message: asStr,
-						Level:   "fatal",
+						Message:  asStr,
+						Level:    "fatal",
 					}, breadcrumbLimit)
 				}
 
@@ -133,6 +133,20 @@ func (m *SentryManager) Fire(lEntry *logrus.Entry) error {
 
 		// Add error breadcrumb if included
 		if err := entry.Error(); err != nil {
+			tryCoerceQuery(err, func(q query) {
+				hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
+					Type:     "query",
+					Category: "db",
+					Message:  "database query",
+					Data: map[string]interface{}{
+						"query": q.QueryBody(),
+						"args":  q.QueryArgs(),
+					},
+					Level:     "info",
+					Timestamp: entry.Time,
+				}, breadcrumbLimit)
+			})
+
 			hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
 				Type:      "error",
 				Category:  loggerName,
