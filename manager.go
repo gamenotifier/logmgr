@@ -85,32 +85,7 @@ func (m *SentryManager) Fire(lEntry *logrus.Entry) error {
 	}
 
 	go func(hub *sentry.Hub) {
-		defer func() {
-			if err := recover(); err != nil {
-				event := sentry.NewEvent()
-				event.Level = sentry.LevelError
-				event.Message = "recovered panic within sentry error logging"
-				event.Fingerprint = []string{fingerprintBase, "sentry_panic"}
-
-				if asErr, ok := err.(error); ok {
-					hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
-						Type:     "error",
-						Category: "sentry.panic",
-						Message:  asErr.Error(),
-						Level:    "fatal",
-					}, breadcrumbLimit)
-				} else if asStr, ok := err.(string); ok {
-					hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
-						Type:     "error",
-						Category: "sentry.panic",
-						Message:  asStr,
-						Level:    "fatal",
-					}, breadcrumbLimit)
-				}
-
-				hub.CaptureEvent(event)
-			}
-		}()
+		defer recoverFromLogging(hub)
 
 		// hub should be one cloned *sentry.Hub in both cases, so we are free to modify it within this goroutine
 		event := sentry.NewEvent()
@@ -131,30 +106,7 @@ func (m *SentryManager) Fire(lEntry *logrus.Entry) error {
 			event.Fingerprint = []string{fingerprintBase, loggerName, entry.Message}
 		}
 
-		// Add error breadcrumb if included
-		if err := entry.Error(); err != nil {
-			tryCoerceQuery(err, func(q query) {
-				hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
-					Type:     "query",
-					Category: "db",
-					Message:  "database query",
-					Data: map[string]interface{}{
-						"query": q.QueryBody(),
-						"args":  q.QueryArgs(),
-					},
-					Level:     "info",
-					Timestamp: entry.Time,
-				}, breadcrumbLimit)
-			})
-
-			hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
-				Type:      "error",
-				Category:  loggerName,
-				Message:   err.Error(),
-				Level:     "error",
-				Timestamp: entry.Time,
-			}, breadcrumbLimit)
-		}
+		enrichEventWithError(hub, entry)
 
 		// Add DB userID if included
 		if userID := entry.UserID(); userID != "" {
@@ -167,6 +119,62 @@ func (m *SentryManager) Fire(lEntry *logrus.Entry) error {
 	}(hub)
 
 	return nil
+}
+
+// recoverFromLogging attempts to recover from a panic within the sentry logging logic.
+func recoverFromLogging(hub *sentry.Hub) {
+	if err := recover(); err != nil {
+		event := sentry.NewEvent()
+		event.Level = sentry.LevelError
+		event.Message = "recovered panic within sentry error logging"
+		event.Fingerprint = []string{fingerprintBase, "sentry_panic"}
+
+		if asErr, ok := err.(error); ok {
+			hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
+				Type:     "error",
+				Category: "sentry.panic",
+				Message:  asErr.Error(),
+				Level:    "fatal",
+			}, breadcrumbLimit)
+		} else if asStr, ok := err.(string); ok {
+			hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
+				Type:     "error",
+				Category: "sentry.panic",
+				Message:  asStr,
+				Level:    "fatal",
+			}, breadcrumbLimit)
+		}
+
+		hub.CaptureEvent(event)
+	}
+}
+
+// enrichEventWithError adds error and db query breadcrumbs if errors are present on entry.
+func enrichEventWithError(hub *sentry.Hub, entry *logEntry) {
+	// Add error breadcrumb if included
+	if err := entry.Error(); err != nil {
+		tryCoerceQuery(err, func(q query) {
+			hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
+				Type:     "query",
+				Category: "db",
+				Message:  "database query",
+				Data: map[string]interface{}{
+					"query": q.QueryBody(),
+					"args":  q.QueryArgs(),
+				},
+				Level:     "info",
+				Timestamp: entry.Time,
+			}, breadcrumbLimit)
+		})
+
+		hub.Scope().AddBreadcrumb(&sentry.Breadcrumb{
+			Type:      "error",
+			Category:  entry.LoggerName(),
+			Message:   err.Error(),
+			Level:     "error",
+			Timestamp: entry.Time,
+		}, breadcrumbLimit)
+	}
 }
 
 // WithRequestContext issues a new sentry.Hub and sets
