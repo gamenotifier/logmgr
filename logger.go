@@ -39,7 +39,11 @@ func (l *Logger) ensureContext() {
 func (l *Logger) WithUser(userID string) *Logger {
 	l.ensureContext()
 	l.Entry.Context = context.WithValue(l.Entry.Context, keyUserID, userID)
-	return l
+	return &Logger{
+		Entry:   l.WithField(keyUserID, userID),
+		manager: l.manager,
+		name:    l.name,
+	}
 }
 
 // WithGin includes the given gin request context in the logger context.
