@@ -190,9 +190,11 @@ func (m *SentryManager) WithRequestContext(ctx *gin.Context) {
 // NewLogger returns a Logger with the given name, linked to this SentryManager object
 func (m *SentryManager) NewLogger(name string) *Logger {
 	log := logrus.New()
+	log.SetLevel(m.logLevel)
 	log.AddHook(m)
 	return &Logger{
 		Entry:   log.WithField(keyLoggerName, name),
+		level:   m.logLevel,
 		manager: m,
 		name:    []string{name},
 	}

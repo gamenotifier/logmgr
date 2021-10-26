@@ -11,6 +11,7 @@ import (
 type Logger struct {
 	*logrus.Entry
 
+	level   logrus.Level
 	manager *SentryManager
 	name    []string
 }
@@ -18,6 +19,7 @@ type Logger struct {
 // Extend returns a Logger with an extended name path.
 func (l *Logger) Extend(name string) *Logger {
 	log := logrus.New()
+	log.SetLevel(l.level)
 	log.AddHook(l.manager) // inherit manager
 
 	newName := append(l.name, name)
