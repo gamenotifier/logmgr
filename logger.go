@@ -16,11 +16,24 @@ type Logger struct {
 	name    []string
 }
 
+// NewPlainLogger creates a Logger without a SentryManager.
+func NewPlainLogger(name string, level logrus.Level) *Logger {
+	log := logrus.New()
+	return &Logger{
+		Entry:   log.WithField(keyLoggerName, name),
+		level:   level,
+		manager: nil,
+		name:    []string{name},
+	}
+}
+
 // Extend returns a Logger with an extended name path.
 func (l *Logger) Extend(name string) *Logger {
 	log := logrus.New()
 	log.SetLevel(l.level)
-	log.AddHook(l.manager) // inherit manager
+	if l.manager != nil {
+		log.AddHook(l.manager) // inherit manager
+	}
 
 	newName := append(l.name, name)
 	newNameStr := strings.Join(newName, ".")
