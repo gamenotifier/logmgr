@@ -4,6 +4,9 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"net"
+	"net/http"
+	"os"
 	"strings"
 )
 
@@ -66,4 +69,35 @@ func (l *Logger) WithGin(c *gin.Context) *Logger {
 	l.ensureContext()
 	l.Entry.Context = context.WithValue(l.Entry.Context, keyGinContext, c)
 	return l
+}
+
+func (l *Logger) Recovery() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if err := recover(); err != nil {
+				// broken pipe handling taken from gin Recovery source code
+				var brokenPipe bool
+				if ne, ok := err.(*net.OpError); ok {
+					if se, ok := ne.Err.(*os.SyscallError); ok {
+						if strings.Contains(strings.ToLower(se.Error()), "broken pipe") || strings.Contains(strings.ToLower(se.Error()), "connection reset by peer") {
+							brokenPipe = true
+						}
+					}
+				}
+
+				if brokenPipe {
+					// If the connection is dead, we can't write a status to it.
+					_ = c.Error(err.(error))
+					c.Abort()
+				} else {
+					l.
+						WithGin(c).
+						WithField("panic", err).
+						Panicf("recovered from panic in %q", c.FullPath())
+					c.AbortWithStatus(http.StatusInternalServerError)
+				}
+			}
+			c.Next()
+		}()
+	}
 }
