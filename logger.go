@@ -97,7 +97,7 @@ func (l *Logger) Recovery() gin.HandlerFunc {
 					c.AbortWithStatus(http.StatusInternalServerError)
 				}
 			}
-			c.Next()
 		}()
+		c.Next()
 	}
 }
