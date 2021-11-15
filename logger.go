@@ -93,7 +93,7 @@ func (l *Logger) Recovery() gin.HandlerFunc {
 					l.
 						WithGin(c).
 						WithField("panic", err).
-						Panicf("recovered from panic in %q", c.FullPath())
+						Errorf("recovered from panic in %q", c.FullPath())
 					c.AbortWithStatus(http.StatusInternalServerError)
 				}
 			}
