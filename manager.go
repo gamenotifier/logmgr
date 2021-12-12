@@ -16,7 +16,7 @@ const (
 )
 
 type LoggerMaker interface {
-	NewLogger(name string) *Logger
+	NewLogger(name string) Logger
 }
 
 // SentryManager is a struct that issues loggers tied back to
@@ -188,11 +188,11 @@ func (m *SentryManager) WithRequestContext(ctx *gin.Context) {
 }
 
 // NewLogger returns a Logger with the given name, linked to this SentryManager object
-func (m *SentryManager) NewLogger(name string) *Logger {
+func (m *SentryManager) NewLogger(name string) Logger {
 	log := logrus.New()
 	log.SetLevel(m.logLevel)
 	log.AddHook(m)
-	return &Logger{
+	return &logger{
 		Entry:   log.WithField(keyLoggerName, name),
 		level:   m.logLevel,
 		manager: m,
