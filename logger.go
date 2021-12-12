@@ -12,7 +12,7 @@ import (
 
 // Logger extends a logrus logger by providing path-like names.
 type Logger interface {
-	logrus.FieldLogger
+	logrus.Ext1FieldLogger
 
 	// Extend returns a Logger with an extended name path.
 	Extend(name string) Logger
