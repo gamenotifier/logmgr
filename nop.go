@@ -42,6 +42,15 @@ func (n *NopLogger) Recovery() gin.HandlerFunc {
 	}
 }
 
+func (n *NopLogger) RecoveryWith(handler gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if handler != nil {
+			handler(c)
+		}
+		c.Next()
+	}
+}
+
 func (n *NopLogger) NewLogger(string) Logger {
 	return n
 }

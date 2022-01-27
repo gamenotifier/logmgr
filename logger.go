@@ -22,6 +22,9 @@ type Logger interface {
 	WithGin(c *gin.Context) Logger
 	// Recovery returns a gin handler function that will recover and log panics.
 	Recovery() gin.HandlerFunc
+	// RecoveryWith returns a gin handler function that will recover with a specific behavior
+	// while also logging panics.
+	RecoveryWith(handler gin.HandlerFunc) gin.HandlerFunc
 }
 
 type logger struct {
@@ -105,6 +108,41 @@ func (l *logger) Recovery() gin.HandlerFunc {
 						WithField("panic", err).
 						Errorf("recovered from panic in %q", c.FullPath())
 					c.AbortWithStatus(http.StatusInternalServerError)
+				}
+			}
+		}()
+		c.Next()
+	}
+}
+
+func (l *logger) RecoveryWith(handler gin.HandlerFunc) gin.HandlerFunc {
+	if handler == nil {
+		panic("RecoveryWith handler must not be nil")
+	}
+
+	return func(c *gin.Context) {
+		defer func() {
+			if err := recover(); err != nil {
+				// broken pipe handling taken from gin Recovery source code
+				var brokenPipe bool
+				if ne, ok := err.(*net.OpError); ok {
+					if se, ok := ne.Err.(*os.SyscallError); ok {
+						if strings.Contains(strings.ToLower(se.Error()), "broken pipe") || strings.Contains(strings.ToLower(se.Error()), "connection reset by peer") {
+							brokenPipe = true
+						}
+					}
+				}
+
+				if brokenPipe {
+					// If the connection is dead, we can't write a status to it.
+					_ = c.Error(err.(error))
+					c.Abort()
+				} else {
+					l.
+						WithGin(c).
+						WithField("panic", err).
+						Errorf("recovered from panic in %q", c.FullPath())
+					handler(c)
 				}
 			}
 		}()
